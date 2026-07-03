@@ -59,6 +59,20 @@ Ask before every file edit:
 { "permission": { "edit": "ask" } }
 ```
 
+## Skipping permission prompts
+
+For trusted, disposable environments (containers, sandboxes, CI) you can auto-approve everything the agent does.
+
+| Surface | How |
+|---------|-----|
+| TUI (`mimo`) | `mimo --dangerously-skip-permissions` |
+| Headless (`mimo run`) | `mimo run --dangerously-skip-permissions "<prompt>"` |
+| Any surface (env) | `MIMOCODE_PERMISSION='"allow"'` or `MIMOCODE_DANGEROUSLY_SKIP_PERMISSIONS=1` |
+
+Semantics: an **allow-all base is injected UNDER your config**, so every tool auto-approves *unless you explicitly `deny` it*. Your `deny` rules still win — this only removes the `ask` prompts.
+
+In the TUI the flag is gated by a one-time red confirmation on startup (you must explicitly accept the risk); the prompt is skipped when there is no TTY so automation still works. This is dangerous — a malicious prompt, file, or plugin can then run arbitrary commands without confirmation. Only use it where you fully trust the workspace.
+
 ## Notes
 
 - Rules are evaluated in your original insertion order and **the last matching rule wins**. Put the `*` catch-all **first** and more specific patterns after it — a `*` placed last would shadow everything above it (e.g. a trailing `"*": "ask"` makes preceding `allow`/`deny` rules dead code).
