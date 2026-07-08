@@ -342,12 +342,16 @@ export const layer: Layer.Layer<Service, never, Bus.Service> = Layer.effect(
       sessionID: SessionID,
       actorID: string | undefined,
     ) {
-      // No agentID → main runLoop (or unregistered/race). Fail open: main and peer
-      // must never silently lose checkpoints / memory instructions.
-      if (!actorID) return true
-      if (yield* isSystemSpawned(sessionID, actorID)) return false
+      // No agentID (or literal "main") → main runLoop. Fail open: main and peer
+      // must never silently lose checkpoints / memory instructions. "main" has no
+      // registry row, so short-circuit before the read.
+      if (!actorID || actorID === "main") return true
+      // Single read, two orthogonal exclusions derived from it: agent TYPE
+      // (system-spawned) and actor MODE (subagent). Unregistered/race → fail open.
       const actor = yield* get(sessionID, actorID)
-      return actor?.mode !== "subagent"
+      if (!actor) return true
+      if (SYSTEM_SPAWNED_AGENT_TYPES.has(actor.agent)) return false
+      return actor.mode !== "subagent"
     })
 
     const allocateActorID = Effect.fn("ActorRegistry.allocateActorID")(function* (
